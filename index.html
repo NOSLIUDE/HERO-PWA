@@ -1,0 +1,1937 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0a0a12">
+    <title>IPTV Hero Pro TV</title>
+    <script src="./vendor/hls.min.js"></script>
+    <script src="./vendor/mpegts.js"></script>
+
+    <style>
+        :root {
+            --marvel-red: #e62429; --marvel-red-dark: #b01a1e; --marvel-yellow: #ffcc00;
+            --dc-blue: #0476f2; --dc-blue-dark: #0257b8; --dc-cyan: #00e5ff;
+            --ink: #0a0a12; --ink-2: #12121e; --ink-3: #1a1a2e;
+            --panel: #16162a; --panel-light: #22223a; --paper: #f4f1e8;
+            --text: #f0f0f5; --text-dim: #9a9ab0;
+            --border-thick: 3px; --shadow-hard: 6px 6px 0 rgba(0,0,0,0.55);
+            --shadow-hard-sm: 4px 4px 0 rgba(0,0,0,0.5);
+            --focus-glow: 0 0 0 4px rgba(255,204,0,0.6), 0 0 20px rgba(255,204,0,0.35);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%; overscroll-behavior: none; }
+        body {
+            font-family: 'Bangers', 'Comic Sans MS', 'Segoe UI', system-ui, sans-serif;
+            background: radial-gradient(circle at 15% 0%, rgba(230,36,41,0.12) 0%, transparent 35%),
+                        radial-gradient(circle at 85% 100%, rgba(4,118,242,0.14) 0%, transparent 35%), var(--ink);
+            color: var(--text); display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+            -webkit-tap-highlight-color: transparent; user-select: none; letter-spacing: 0.3px;
+        }
+        :focus { outline: none; }
+        .focusable:focus, .focusable:focus-visible {
+            outline: none !important; box-shadow: var(--focus-glow), var(--shadow-hard-sm) !important;
+        }
+        button.focusable:focus, .tab.focusable:focus, .content-tab.focusable:focus,
+        .fullscreen-btn:focus, .user-menu-btn:focus, .proxy-indicator:focus {
+            transform: translate(-2px, -2px); transition: transform 0.08s ease, box-shadow 0.08s ease;
+        }
+        .channel-item:focus { background: var(--panel-light); border-left-color: var(--marvel-yellow) !important; }
+        .channel-item:focus.active, .channel-item.active:focus { background: var(--marvel-red); }
+
+        header {
+            background: linear-gradient(135deg, var(--marvel-red) 0%, var(--marvel-red-dark) 45%, var(--ink-2) 45.5%, var(--dc-blue) 100%);
+            padding: 10px 18px; border-bottom: var(--border-thick) solid #000;
+            display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+            position: relative; box-shadow: 0 4px 0 rgba(0,0,0,0.4); z-index: 100;
+        }
+        header h1 { font-size: 1.35rem; color: var(--paper); white-space: nowrap;
+            text-shadow: 2px 2px 0 #000, 3px 3px 0 rgba(0,0,0,0.4); letter-spacing: 1px;
+            display: flex; align-items: center; gap: 8px; }
+        .header-right { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+        .proxy-indicator { font-size: 0.72rem; padding: 5px 10px; border-radius: 4px;
+            background: var(--panel); color: var(--text-dim); cursor: pointer; border: 2px solid #000;
+            box-shadow: var(--shadow-hard-sm); font-family: 'Segoe UI', system-ui, sans-serif;
+            font-weight: 700; letter-spacing: 0.5px; }
+        .proxy-indicator.active { background: #16a34a; color: white; }
+        .proxy-indicator.warning { background: var(--marvel-red); color: white; }
+        .user-menu-btn { display: flex; align-items: center; gap: 8px; background: var(--ink-2);
+            padding: 5px 14px 5px 6px; border-radius: 24px; cursor: pointer; border: 2px solid #000;
+            color: var(--text); font-size: 0.82rem; font-weight: 700; box-shadow: var(--shadow-hard-sm);
+            font-family: 'Segoe UI', system-ui, sans-serif; max-width: 260px; }
+        .user-menu-btn:hover, .user-menu-btn:focus { background: var(--panel-light); }
+        .user-menu-btn #current-profile-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px; }
+        .user-avatar { width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+            background: linear-gradient(135deg, var(--dc-blue), var(--dc-cyan));
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1rem; border: 2px solid var(--marvel-yellow); }
+
+        .user-menu-panel { position: absolute; top: 100%; right: 12px; margin-top: 8px;
+            background: var(--panel); border: var(--border-thick) solid #000; border-radius: 8px;
+            box-shadow: var(--shadow-hard); min-width: 420px; max-width: 95vw; z-index: 1000;
+            display: none; overflow: hidden; }
+        .user-menu-panel.open { display: block; }
+        .user-menu-header { padding: 12px 16px; border-bottom: 2px solid #000;
+            background: linear-gradient(90deg, var(--marvel-red), var(--dc-blue));
+            display: flex; justify-content: space-between; align-items: center; }
+        .user-menu-header h3 { font-size: 0.9rem; color: var(--paper); text-transform: uppercase;
+            letter-spacing: 1.5px; text-shadow: 1px 1px 0 #000; }
+        .user-menu-body { max-height: 460px; overflow-y: auto; padding: 14px 14px 6px;
+            background: var(--ink-2); scroll-behavior: smooth; }
+
+        .profile-item { padding: 10px 12px; border-radius: 6px; margin-bottom: 8px;
+            cursor: pointer; border: 2px solid #000; background: var(--panel);
+            border-left: 5px solid var(--marvel-red);
+            transition: background 0.15s, border-color 0.15s;
+            box-shadow: var(--shadow-hard-sm); }
+        .profile-item:nth-child(odd) { border-left-color: var(--dc-blue); }
+        .profile-item:hover { background: var(--panel-light); }
+        .profile-item.active { background: var(--ink-3); border-color: var(--marvel-yellow); }
+        .profile-item.focused {
+            background: var(--panel-light) !important;
+            border-color: var(--marvel-yellow) !important;
+            box-shadow: var(--focus-glow), var(--shadow-hard-sm) !important;
+        }
+        .profile-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; gap: 8px; }
+        .profile-hero { font-weight: 700; color: var(--marvel-yellow); font-size: 0.92rem;
+            letter-spacing: 0.5px; text-shadow: 1px 1px 0 #000;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+        .profile-badge { font-size: 0.62rem; padding: 2px 7px; border-radius: 3px; font-weight: 700;
+            border: 1.5px solid #000; letter-spacing: 0.5px;
+            font-family: 'Segoe UI', system-ui, sans-serif; white-space: nowrap; flex-shrink: 0; }
+        .badge-valid { background: #16a34a; color: white; }
+        .badge-expired { background: var(--marvel-red); color: white; }
+        .badge-unknown { background: #475569; color: #e2e8f0; }
+        .badge-bulk { background: var(--dc-blue); color: white; }
+        .profile-meta { font-size: 0.7rem; color: var(--text-dim); display: flex; gap: 6px; flex-wrap: wrap;
+            font-family: 'Segoe UI', system-ui, sans-serif; }
+        .profile-meta span { display: inline-flex; align-items: center; gap: 3px;
+            max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .profile-actions { display: flex; gap: 6px; margin-top: 7px; }
+        .profile-actions button { padding: 4px 10px; font-size: 0.68rem; border-radius: 4px;
+            border: 2px solid #000; cursor: pointer; background: var(--panel-light);
+            color: var(--text); font-weight: 700; box-shadow: 2px 2px 0 rgba(0,0,0,0.5);
+            font-family: 'Segoe UI', system-ui, sans-serif; letter-spacing: 0.3px; }
+        .profile-actions button:hover { background: #64748b; }
+        .profile-actions button.danger { background: var(--marvel-red); color: white; }
+
+        .profile-load-more { display: block; width: 100%; padding: 10px; margin: 6px 0 10px;
+            background: linear-gradient(135deg, var(--dc-blue), var(--dc-cyan));
+            color: #000; font-weight: 800; font-size: 0.78rem;
+            border: 2px solid #000; border-radius: 4px; cursor: pointer;
+            letter-spacing: 1px; text-align: center; box-shadow: var(--shadow-hard-sm);
+            font-family: 'Segoe UI', system-ui, sans-serif; }
+        .profile-load-more.focused { background: var(--marvel-yellow); box-shadow: var(--focus-glow); }
+
+        .user-menu-footer { padding: 10px 14px; border-top: 2px solid #000;
+            background: var(--ink-3); font-size: 0.75rem; color: var(--text-dim);
+            display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+        .user-menu-footer button { padding: 5px 10px; font-size: 0.7rem; border-radius: 4px;
+            border: 2px solid #000; cursor: pointer; background: var(--panel-light);
+            color: var(--text); font-weight: 700; box-shadow: 2px 2px 0 rgba(0,0,0,0.5);
+            font-family: 'Segoe UI', system-ui, sans-serif; }
+        .user-menu-footer button:hover { background: #64748b; }
+        .user-menu-footer button.danger { background: var(--marvel-red); color: white; }
+        .user-menu-footer button.hero { background: linear-gradient(135deg, var(--marvel-red), var(--dc-blue)); color: white; }
+        .empty-profiles { padding: 24px; text-align: center; color: var(--text-dim); font-size: 0.85rem; }
+
+        .tabs { display: flex; background: var(--ink-2); padding: 0 16px;
+            border-bottom: 2px solid #000; overflow-x: auto; }
+        .tab { padding: 12px 18px; background: transparent; border: none;
+            color: var(--text-dim); cursor: pointer; font-size: 0.88rem; font-weight: 700;
+            border-bottom: 3px solid transparent; white-space: nowrap;
+            letter-spacing: 0.5px; font-family: 'Segoe UI', system-ui, sans-serif; }
+        .tab:hover, .tab:focus { color: var(--text); background: rgba(255,255,255,0.05); }
+        .tab.active { color: var(--marvel-yellow); border-bottom-color: var(--marvel-yellow); }
+        .tab-panel { display: none; padding: 12px 18px; background: var(--panel);
+            border-bottom: 2px solid #000; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .tab-panel.active { display: flex; }
+        .tab-panel input[type="text"], .tab-panel input[type="password"] {
+            padding: 8px 12px; border-radius: 4px; border: 2px solid #000;
+            background: var(--ink-3); color: var(--text); font-size: 0.85rem;
+            font-family: 'Segoe UI', system-ui, sans-serif; }
+        .tab-panel input:focus { border-color: var(--marvel-yellow); }
+        .tab-panel button { padding: 8px 16px; border-radius: 4px; border: 2px solid #000;
+            background: var(--marvel-yellow); color: #000; font-weight: 800;
+            cursor: pointer; font-size: 0.85rem; letter-spacing: 0.5px;
+            box-shadow: var(--shadow-hard-sm); font-family: 'Segoe UI', system-ui, sans-serif; }
+        .tab-panel button.secondary { background: var(--panel-light); color: var(--text); }
+        .tab-panel button.danger { background: var(--marvel-red); color: white; }
+        .tab-panel button.hero { background: linear-gradient(135deg, var(--marvel-red), var(--dc-blue)); color: white; }
+        .hint { font-size: 0.75rem; color: var(--text-dim); width: 100%; font-family: 'Segoe UI', system-ui, sans-serif; }
+        .bulk-counter { font-size: 0.75rem; color: var(--marvel-yellow); font-weight: 700; }
+
+        main { display: flex; flex: 1; overflow: hidden; }
+        aside { width: 350px; background: var(--ink-2); border-right: 3px solid #000;
+            display: flex; flex-direction: column; }
+        .content-tabs { display: flex; border-bottom: 2px solid #000;
+            background: linear-gradient(90deg, var(--marvel-red-dark), var(--dc-blue-dark)); }
+        .content-tab { flex: 1; padding: 11px; background: transparent; border: none;
+            color: var(--paper); cursor: pointer; font-size: 0.82rem; font-weight: 700;
+            border-bottom: 3px solid transparent; font-family: 'Segoe UI', system-ui, sans-serif; }
+        .content-tab:hover, .content-tab:focus { background: rgba(0,0,0,0.25); color: white; }
+        .content-tab.active { color: var(--marvel-yellow); border-bottom-color: var(--marvel-yellow); background: rgba(0,0,0,0.3); }
+        .category-select { padding: 10px; border-bottom: 2px solid #000; background: var(--panel); }
+        .category-select select { width: 100%; padding: 8px; border-radius: 4px;
+            background: var(--ink-3); color: var(--text); border: 2px solid #000;
+            font-size: 0.85rem; font-family: 'Segoe UI', system-ui, sans-serif; }
+        #channel-list { flex: 1; overflow-y: auto; padding: 10px; scroll-behavior: smooth; }
+        .channel-item { padding: 10px 12px; border-radius: 4px; cursor: pointer; margin-bottom: 4px;
+            display: flex; align-items: center; gap: 8px; font-size: 0.86rem;
+            border: 2px solid #000; border-left: 4px solid var(--marvel-red);
+            background: var(--panel); box-shadow: 2px 2px 0 rgba(0,0,0,0.4);
+            font-family: 'Segoe UI', system-ui, sans-serif; }
+        .channel-item:nth-child(3n) { border-left-color: var(--dc-blue); }
+        .channel-item:nth-child(3n+1) { border-left-color: var(--marvel-yellow); }
+        .channel-item:hover { background: var(--panel-light); }
+        .channel-item.active { background: linear-gradient(90deg, var(--marvel-red), var(--marvel-red-dark));
+            color: white; font-weight: 700; border-color: var(--marvel-yellow); }
+        .channel-item > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+        .badge { font-size: 0.6rem; background: var(--dc-blue); color: white; padding: 2px 6px;
+            border-radius: 3px; margin-left: auto; white-space: nowrap; border: 1px solid #000;
+            font-weight: 700; font-family: 'Segoe UI', system-ui, sans-serif; flex-shrink: 0; }
+
+        .video-area { flex: 1; display: flex; flex-direction: column; background: #000; padding: 8px; }
+        #video-container { flex: 1; display: flex; align-items: center; justify-content: center;
+            position: relative; border: var(--border-thick) solid #000;
+            box-shadow: inset 0 0 0 3px var(--marvel-red), inset 0 0 0 6px var(--dc-blue), 0 0 30px rgba(230,36,41,0.2);
+            background: #000; border-radius: 4px; overflow: hidden; }
+        #video { width: 100%; height: 100%; object-fit: contain; }
+
+        #status-overlay { position: absolute; top: 14px; left: 14px; background: rgba(10,10,18,0.9);
+            padding: 6px 12px; border-radius: 4px; font-size: 0.75rem; color: var(--marvel-yellow);
+            max-width: 90%; border: 2px solid var(--marvel-yellow);
+            font-family: 'Segoe UI', system-ui, sans-serif; font-weight: 700; z-index: 4; }
+
+        #seasons-panel {
+            position: absolute; inset: 0; background: rgba(5,5,10,0.97);
+            display: none; flex-direction: column; z-index: 50;
+            border-radius: 4px; overflow: hidden;
+        }
+        #seasons-panel.open { display: flex; }
+        .seasons-header {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 16px; border-bottom: 2px solid #000;
+            background: linear-gradient(90deg, var(--marvel-red), var(--dc-blue));
+            flex-shrink: 0;
+        }
+        .seasons-header h2 {
+            flex: 1; font-size: 1rem; color: var(--paper);
+            text-shadow: 1px 1px 0 #000; letter-spacing: 1px;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .seasons-back-btn {
+            padding: 6px 14px; border-radius: 4px; border: 2px solid #000;
+            background: var(--ink-2); color: var(--text); font-weight: 800;
+            cursor: pointer; font-size: 0.8rem; letter-spacing: 0.5px;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            box-shadow: var(--shadow-hard-sm);
+        }
+        .seasons-back-btn:hover, .seasons-back-btn:focus { background: var(--panel-light); }
+
+        .seasons-body { flex: 1; display: flex; overflow: hidden; min-height: 0; }
+        .seasons-col, .episodes-col {
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        .seasons-col {
+            width: 200px; flex-shrink: 0;
+            background: var(--ink-2); border-right: 2px solid #000;
+        }
+        .episodes-col { flex: 1; overflow: hidden; min-width: 0; }
+        .seasons-col-title {
+            padding: 8px 12px; font-size: 0.7rem; color: var(--text-dim);
+            text-transform: uppercase; letter-spacing: 1.2px;
+            font-family: 'Segoe UI', system-ui, sans-serif; font-weight: 700;
+            border-bottom: 2px solid #000; background: var(--panel);
+        }
+        .seasons-list, .episodes-list {
+            flex: 1;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+            min-height: 0;
+            outline: none;
+            padding: 8px;
+        }
+        .season-item {
+            padding: 10px 12px; margin-bottom: 6px; border-radius: 4px;
+            border: 2px solid #000; border-left: 4px solid var(--marvel-yellow);
+            background: var(--panel); cursor: pointer;
+            font-size: 0.82rem; font-weight: 700; color: var(--text);
+            box-shadow: 2px 2px 0 rgba(0,0,0,0.4);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            display: flex; justify-content: space-between; align-items: center; gap: 6px;
+        }
+        .season-item:nth-child(3n) { border-left-color: var(--dc-blue); }
+        .season-item:nth-child(3n+1) { border-left-color: var(--marvel-red); }
+        .season-item:hover { background: var(--panel-light); }
+        .season-item.active { background: linear-gradient(90deg, var(--marvel-red), var(--marvel-red-dark)); color: white; border-color: var(--marvel-yellow); }
+        .season-item .count {
+            font-size: 0.65rem; padding: 2px 6px; border-radius: 3px;
+            background: rgba(0,0,0,0.35); color: inherit; font-weight: 700;
+        }
+        .episodes-col-title {
+            padding: 8px 12px; font-size: 0.7rem; color: var(--text-dim);
+            text-transform: uppercase; letter-spacing: 1.2px;
+            font-family: 'Segoe UI', system-ui, sans-serif; font-weight: 700;
+            border-bottom: 2px solid #000; background: var(--panel);
+        }
+        .episode-item {
+            padding: 10px 12px; margin-bottom: 6px; border-radius: 4px;
+            border: 2px solid #000; border-left: 4px solid var(--dc-cyan);
+            background: var(--panel); cursor: pointer;
+            font-size: 0.82rem; color: var(--text);
+            box-shadow: 2px 2px 0 rgba(0,0,0,0.4);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            display: flex; flex-direction: column; gap: 3px;
+        }
+        .episode-item:hover { background: var(--panel-light); }
+        .episode-item.active { background: linear-gradient(90deg, var(--dc-blue), var(--dc-blue-dark)); color: white; border-color: var(--marvel-yellow); }
+        .episode-item .ep-title { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .episode-item .ep-meta { font-size: 0.68rem; color: var(--text-dim); }
+        .episode-item.active .ep-meta { color: rgba(255,255,255,0.8); }
+
+        .season-item:focus, .episode-item:focus { outline: none; }
+        .season-item:focus, .episode-item:focus {
+            box-shadow: var(--focus-glow), var(--shadow-hard-sm) !important;
+            z-index: 2;
+        }
+        .season-item:focus:not(.active) { background: var(--panel-light); }
+        .episode-item:focus:not(.active) { background: var(--panel-light); }
+
+        .seasons-loading {
+            padding: 24px; text-align: center; color: var(--text-dim);
+            font-size: 0.85rem; font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+        .seasons-error {
+            padding: 24px; text-align: center; color: var(--marvel-red);
+            font-size: 0.85rem; font-family: 'Segoe UI', system-ui, sans-serif; font-weight: 700;
+        }
+
+        .controls { background: var(--panel); padding: 10px 14px; display: flex; gap: 10px;
+            align-items: center; border-top: 3px solid #000; font-size: 0.85rem;
+            margin-top: 8px; border-radius: 4px; }
+        .conn-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 0.72rem;
+            color: var(--text-dim); font-family: 'Segoe UI', system-ui, sans-serif;
+            padding: 4px 8px; background: var(--ink-3); border-radius: 4px; border: 1.5px solid #000; }
+        .conn-dot { width: 8px; height: 8px; border-radius: 50%; background: #16a34a; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .fullscreen-btn { padding: 8px 16px; border-radius: 4px; border: 2px solid #000;
+            background: var(--dc-blue); color: white; font-weight: 800; cursor: pointer;
+            font-size: 0.85rem; box-shadow: var(--shadow-hard-sm);
+            font-family: 'Segoe UI', system-ui, sans-serif; }
+        .fullscreen-btn:hover, .fullscreen-btn:focus { background: var(--dc-cyan); color: #000; }
+
+        body.video-fullscreen header, body.video-fullscreen .tabs, body.video-fullscreen .tab-panel,
+        body.video-fullscreen aside, body.video-fullscreen .controls { display: none !important; }
+        body.video-fullscreen main { display: block; }
+        body.video-fullscreen .video-area { width: 100vw; height: 100vh; padding: 0; }
+        body.video-fullscreen #video-container { width: 100vw; height: 100vh; border: none; box-shadow: none; border-radius: 0; }
+        body.video-fullscreen #status-overlay { display: none; }
+        body.video-fullscreen .exit-fs-hint { position: fixed; top: 20px; right: 20px;
+            background: rgba(10,10,18,0.95); color: var(--marvel-yellow); padding: 10px 18px;
+            border-radius: 6px; font-size: 0.85rem; z-index: 9999; opacity: 0;
+            transition: opacity 0.3s; pointer-events: none; border: 2px solid var(--marvel-yellow); }
+        body.video-fullscreen .exit-fs-hint.show { opacity: 1; }
+
+        .fs-hint-toast {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(10,10,18,0.95); color: var(--marvel-yellow);
+            padding: 10px 18px; border-radius: 6px; font-size: 0.85rem;
+            border: 2px solid var(--marvel-yellow); z-index: 9999;
+            opacity: 0; transition: opacity 0.3s; pointer-events: none;
+            font-family: 'Segoe UI', system-ui, sans-serif; font-weight: 700;
+        }
+        .fs-hint-toast.show { opacity: 1; }
+
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(5,5,10,0.92); z-index: 2000; display: none;
+            align-items: center; justify-content: center; padding: 20px; }
+        .modal-overlay.open { display: flex; }
+        .modal-box { background: var(--panel); border-radius: 8px; padding: 0;
+            max-width: 520px; width: 100%; border: var(--border-thick) solid #000;
+            box-shadow: var(--shadow-hard); overflow: hidden; }
+        .modal-box > h2 { font-size: 1.05rem; color: var(--paper); padding: 14px 22px;
+            background: linear-gradient(90deg, var(--marvel-red), var(--dc-blue));
+            text-shadow: 1px 1px 0 #000; letter-spacing: 1px; border-bottom: 2px solid #000; margin: 0; }
+        .modal-box > p { font-size: 0.85rem; color: var(--text-dim); margin: 14px 22px 12px;
+            line-height: 1.5; font-family: 'Segoe UI', system-ui, sans-serif; }
+        .modal-box .progress-bar { height: 12px; background: var(--ink-3); border-radius: 6px;
+            overflow: hidden; margin: 12px 22px; border: 2px solid #000; }
+        .modal-box .progress-fill { height: 100%;
+            background: linear-gradient(90deg, var(--marvel-red), var(--marvel-yellow), var(--dc-blue));
+            transition: width 0.3s; }
+        .modal-box .log { max-height: 150px; overflow-y: auto; background: var(--ink-3);
+            border-radius: 4px; padding: 10px; font-size: 0.7rem; color: var(--text-dim);
+            font-family: 'Courier New', monospace; margin: 0 22px 12px; border: 2px solid #000; }
+        .modal-box button { width: calc(100% - 44px); padding: 12px; border-radius: 4px;
+            border: 2px solid #000; background: var(--marvel-yellow); color: #000;
+            font-weight: 800; cursor: pointer; margin: 8px 22px 18px;
+            box-shadow: var(--shadow-hard-sm); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 0.88rem; }
+        .modal-box button.secondary { background: var(--panel-light); color: var(--text); }
+        .modal-box button.danger { background: var(--marvel-red); color: white; }
+        #dialog-modal .modal-box { max-width: 440px; }
+        #dialog-modal .dialog-actions { display: flex; gap: 10px; margin: 16px 22px 18px; }
+        #dialog-modal .dialog-actions button { flex: 1; margin: 0; width: auto; }
+        #dialog-input { width: calc(100% - 44px); padding: 10px 12px; border-radius: 4px;
+            border: 2px solid #000; background: var(--ink-3); color: var(--text);
+            font-size: 0.9rem; margin: 0 22px 8px; display: none;
+            font-family: 'Segoe UI', system-ui, sans-serif; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>🎬 IPTV HERO PRO TV</h1>
+    <div class="header-right">
+        <button class="fullscreen-btn focusable" onclick="toggleFullscreen()">⛶ TELA CHEIA</button>
+        <span id="proxy-indicator" class="proxy-indicator focusable" tabindex="0" onclick="switchTab('tab-proxy')">PROXY: OFF</span>
+        <button class="user-menu-btn focusable" id="user-menu-btn" onclick="toggleUserMenu(event)">
+            <span class="user-avatar" id="current-avatar">👤</span>
+            <span id="current-profile-name">Nenhum perfil</span>
+            <span style="font-size:0.7rem;">▼</span>
+        </button>
+    </div>
+    <div class="user-menu-panel" id="user-menu-panel">
+        <div class="user-menu-header">
+            <h3>👤 PERFIS / LISTAS</h3>
+            <span id="profile-count" style="font-size:0.7rem;color:#ffe082;font-weight:700;">0 perfis</span>
+        </div>
+        <div class="user-menu-body" id="profile-list">
+            <div class="empty-profiles">Nenhum perfil criado ainda.</div>
+        </div>
+        <div class="user-menu-footer">
+            <button class="focusable hero" onclick="loadHeroList()">🦸 HERO LISTA</button>
+            <button class="focusable" onclick="exportProfilesTXT()">📤 EXPORTAR</button>
+            <button class="focusable" onclick="document.getElementById('bulk-file').click()">📥 LOTE</button>
+            <button class="focusable danger" onclick="deleteAllProfiles()">🗑️ LIMPAR</button>
+        </div>
+    </div>
+</header>
+
+<input type="file" id="bulk-file" accept=".txt" onchange="loadBulkTXT(event)" style="display:none;">
+
+<div class="tabs">
+    <button class="tab focusable active" data-tab="tab-hero" onclick="switchTab('tab-hero')">🦸 HERO LISTA</button>
+    <button class="tab focusable" data-tab="tab-xtream" onclick="switchTab('tab-xtream')">🔑 XTREAM</button>
+    <button class="tab focusable" data-tab="tab-proxy" onclick="switchTab('tab-proxy')">🛡️ PROXY</button>
+</div>
+
+<div class="tab-panel active" id="tab-hero">
+    <button class="focusable hero" onclick="loadHeroList()">🦸 CARREGAR HERO LISTA</button>
+    <button class="focusable secondary" onclick="checkHeroListUpdate()">🔄 VERIFICAR</button>
+    <span class="hint">Lista pública atualizada automaticamente. Clique em carregar para sincronizar.</span>
+    <span class="bulk-counter" id="hero-counter"></span>
+</div>
+
+<div class="tab-panel" id="tab-xtream">
+    <input type="text" class="focusable" id="xc-server" placeholder="Servidor" style="flex:1;min-width:180px;">
+    <input type="text" class="focusable" id="xc-user" placeholder="Usuário" style="width:120px;">
+    <input type="password" class="focusable" id="xc-pass" placeholder="Senha" style="width:120px;">
+    <button class="focusable" onclick="loadXtream()">CONECTAR</button>
+</div>
+
+<div class="tab-panel" id="tab-proxy">
+    <input type="text" class="focusable" id="proxy-url" placeholder="https://seu-worker.workers.dev/" style="flex:1;min-width:250px;">
+    <button class="focusable" onclick="saveProxy()">SALVAR</button>
+    <button class="focusable secondary" onclick="testProxy()">TESTAR</button>
+    <button class="focusable danger" onclick="clearProxy()">REMOVER</button>
+</div>
+
+<main>
+    <aside id="sidebar">
+        <div class="content-tabs">
+            <button class="content-tab focusable active" data-content="live" onclick="switchContent('live')">📺 AO VIVO</button>
+            <button class="content-tab focusable" data-content="vod" onclick="switchContent('vod')">🎬 FILMES</button>
+            <button class="content-tab focusable" data-content="series" onclick="switchContent('series')">📽️ SÉRIES</button>
+        </div>
+        <div class="category-select">
+            <select class="focusable" id="category-filter" onchange="filterChannels()">
+                <option value="">Todas as Categorias</option>
+            </select>
+        </div>
+        <div id="channel-list" tabindex="0">
+            <div style="padding:24px; color:var(--text-dim); text-align:center; font-size:0.85rem;">Carregue uma lista para começar</div>
+        </div>
+    </aside>
+
+    <div class="video-area">
+        <div id="video-container">
+            <video id="video" controls autoplay playsinline></video>
+            <div id="status-overlay">Aguardando...</div>
+
+            <div id="seasons-panel">
+                <div class="seasons-header">
+                    <button class="seasons-back-btn focusable" id="seasons-back-btn" onclick="closeSeasonsPanel()">◀ VOLTAR</button>
+                    <h2 id="seasons-title">Série</h2>
+                </div>
+                <div class="seasons-body">
+                    <div class="seasons-col">
+                        <div class="seasons-col-title">Temporadas</div>
+                        <div class="seasons-list" id="seasons-list"></div>
+                    </div>
+                    <div class="episodes-col">
+                        <div class="episodes-col-title" id="episodes-col-title">Episódios</div>
+                        <div class="episodes-list" id="episodes-list"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="controls">
+            <span id="current-channel" style="flex:1; color:var(--text-dim); font-family:'Segoe UI',system-ui,sans-serif; font-size:0.82rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Nenhum item selecionado</span>
+            <button class="fullscreen-btn focusable" onclick="toggleFullscreen()">⛶ TELA CHEIA</button>
+            <span class="conn-badge"><span class="conn-dot"></span><span id="active-conns">0</span> CONEXÕES</span>
+        </div>
+    </div>
+</main>
+
+<div class="exit-fs-hint" id="exit-fs-hint">Pressione <b>BACK</b> ou <b>ESC</b> para sair</div>
+
+<div class="fs-hint-toast" id="fs-hint-toast">⛶ Tela cheia ativada</div>
+
+<div class="modal-overlay" id="bulk-modal">
+    <div class="modal-box">
+        <h2>📚 PROCESSANDO LOTE</h2>
+        <p id="bulk-modal-msg">Preparando...</p>
+        <div class="progress-bar"><div class="progress-fill" id="bulk-progress" style="width:0%"></div></div>
+        <div class="log" id="bulk-log"></div>
+        <button id="bulk-cancel-btn" class="danger focusable" onclick="cancelBulk()">CANCELAR</button>
+        <button id="bulk-close-btn" class="secondary focusable" style="display:none;" onclick="closeBulkModal()">FECHAR</button>
+    </div>
+</div>
+
+<div class="modal-overlay" id="dialog-modal">
+    <div class="modal-box">
+        <h2 id="dialog-title">AVISO</h2>
+        <p id="dialog-msg"></p>
+        <input type="text" id="dialog-input">
+        <div class="dialog-actions">
+            <button id="dialog-cancel" class="secondary focusable" style="display:none;">CANCELAR</button>
+            <button id="dialog-ok" class="focusable">OK</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ============================================================
+// INDEXEDDB
+// ============================================================
+const DB_NAME = 'iptv_hero_db'; const DB_VERSION = 1;
+const STORE_NAME = 'profiles'; const META_STORE = 'meta';
+let db = null;
+function openDB() {
+    return new Promise((resolve, reject) => {
+        if (db) return resolve(db);
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = (e) => {
+            const d = e.target.result;
+            if (!d.objectStoreNames.contains(STORE_NAME)) {
+                const store = d.createObjectStore(STORE_NAME, { keyPath: 'id' });
+                store.createIndex('lastUsed', 'lastUsed', { unique: false });
+            }
+            if (!d.objectStoreNames.contains(META_STORE)) d.createObjectStore(META_STORE, { keyPath: 'key' });
+        };
+        req.onsuccess = () => { db = req.result; resolve(db); };
+        req.onerror = () => reject(req.error);
+    });
+}
+async function saveProfilesToDB() {
+    try {
+        const d = await openDB();
+        const tx = d.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        store.clear(); profiles.forEach(p => store.put(p));
+        const tx2 = d.transaction(META_STORE, 'readwrite');
+        tx2.objectStore(META_STORE).put({ key: 'activeProfileId', value: activeProfileId || null });
+        await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = () => rej(tx.error); });
+    } catch (e) { console.warn('saveProfilesToDB:', e); }
+}
+async function upsertProfileToDB(profile) {
+    try {
+        const d = await openDB();
+        const tx = d.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).put(profile);
+        await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = () => rej(tx.error); });
+    } catch (e) { console.warn('upsertProfileToDB:', e); }
+}
+async function loadProfilesFromDB() {
+    try {
+        const d = await openDB();
+        const tx = d.transaction(STORE_NAME, 'readonly');
+        const req = tx.objectStore(STORE_NAME).getAll();
+        const list = await new Promise((res, rej) => { req.onsuccess = () => res(req.result || []); req.onerror = () => rej(req.error); });
+        const tx2 = d.transaction(META_STORE, 'readonly');
+        const req2 = tx2.objectStore(META_STORE).get('activeProfileId');
+        const meta = await new Promise((res, rej) => { req2.onsuccess = () => res(req2.result); req2.onerror = () => rej(req2.error); });
+        activeProfileId = meta ? meta.value : null;
+        return list;
+    } catch (e) { console.warn('loadProfilesFromDB:', e); return []; }
+}
+
+// ============================================================
+// DIALOG HELPERS
+// ============================================================
+function showDialog({ title = 'Aviso', message = '', showCancel = false, showInput = false, defaultValue = '', okText = 'OK', cancelText = 'Cancelar' }) {
+    return new Promise(resolve => {
+        const modal = document.getElementById('dialog-modal');
+        const okBtn = document.getElementById('dialog-ok');
+        const cancelBtn = document.getElementById('dialog-cancel');
+        const input = document.getElementById('dialog-input');
+        document.getElementById('dialog-title').textContent = title;
+        document.getElementById('dialog-msg').textContent = message;
+        okBtn.textContent = okText; cancelBtn.textContent = cancelText;
+        cancelBtn.style.display = showCancel ? 'block' : 'none';
+        input.style.display = showInput ? 'block' : 'none';
+        input.value = defaultValue; modal.classList.add('open');
+        const cleanup = (val) => {
+            modal.classList.remove('open');
+            okBtn.onclick = null; cancelBtn.onclick = null; input.onkeydown = null;
+            resolve(val);
+        };
+        okBtn.onclick = () => cleanup(showInput ? input.value : true);
+        cancelBtn.onclick = () => cleanup(showInput ? null : false);
+        input.onkeydown = (e) => { if (e.key === 'Enter') okBtn.click(); if (e.key === 'Escape') cancelBtn.click(); };
+        setTimeout(() => (showInput ? input : okBtn).focus(), 80);
+    });
+}
+const tvAlert = (msg, title = 'Aviso') => showDialog({ title, message: msg });
+const tvConfirm = (msg, title = 'Confirmação') => showDialog({ title, message: msg, showCancel: true });
+
+// ============================================================
+// FULLSCREEN / WAKELOCK
+// ============================================================
+function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+        const el = document.documentElement;
+        if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+        document.body.classList.add('video-fullscreen');
+        showFsHint();
+    } else exitFullscreen();
+}
+function exitFullscreen() {
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    document.body.classList.remove('video-fullscreen');
+}
+function showFsHint() {
+    const h = document.getElementById('exit-fs-hint');
+    h.classList.add('show'); setTimeout(() => h.classList.remove('show'), 3000);
+}
+document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement) document.body.classList.remove('video-fullscreen');
+});
+let wakeLock = null;
+async function requestWakeLock() {
+    try { if ('wakeLock' in navigator) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); } } catch (e) {}
+}
+function releaseWakeLock() { if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; } }
+
+// ============================================================
+// ATALHOS D-PAD PARA TELA CHEIA (PRESERVADO)
+// ============================================================
+const FS_SHORTCUTS = {
+    doubleOkWindow: 350,
+    longOkHoldMs: 800,
+    enableDoubleOk: true,
+    enableLongOk: true,
+    enableColorButtons: true,
+};
+
+let _lastOkTime = 0;
+let _okHoldTimer = null;
+let _okHeld = false;
+
+function showFsToast(msg) {
+    const t = document.getElementById('fs-hint-toast');
+    if (!t) return;
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+function triggerFullscreenShortcut(source) {
+    if (document.getElementById('seasons-panel').classList.contains('open')) return;
+    if (document.getElementById('dialog-modal').classList.contains('open')) return;
+    if (document.getElementById('bulk-modal').classList.contains('open')) return;
+    if (document.getElementById('user-menu-panel').classList.contains('open')) return;
+    if (document.fullscreenElement) {
+        exitFullscreen();
+        showFsToast('⛶ Tela cheia desativada (' + source + ')');
+    } else {
+        toggleFullscreen();
+        showFsToast('⛶ Tela cheia ativada (' + source + ')');
+    }
+}
+
+function handleFullscreenShortcut(e, phase) {
+    const k = e.key;
+    const code = e.keyCode;
+
+    if (FS_SHORTCUTS.enableColorButtons && phase === 'down') {
+        const colorMap = {
+            183: 'Vermelho', 184: 'Verde', 185: 'Amarelo', 186: 'Azul',
+            'ColorF0Red': 'Vermelho', 'ColorF1Green': 'Verde',
+            'ColorF2Yellow': 'Amarelo', 'ColorF3Blue': 'Azul',
+        };
+        if (colorMap[code] || colorMap[k]) {
+            e.preventDefault();
+            triggerFullscreenShortcut(colorMap[code] || colorMap[k]);
+            return true;
+        }
+    }
+
+    if (FS_SHORTCUTS.enableDoubleOk && phase === 'down') {
+        if (k === 'Enter' || code === 13 || code === 23) {
+            const active = document.activeElement;
+            const tag = (active && active.tagName) || '';
+            const isInput = tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA';
+            const isButtonLike = active && (active.tagName === 'BUTTON' || active.classList.contains('channel-item')
+                || active.classList.contains('season-item') || active.classList.contains('episode-item')
+                || active.classList.contains('profile-item'));
+            if (!isInput && !isButtonLike) {
+                const now = Date.now();
+                if (now - _lastOkTime < FS_SHORTCUTS.doubleOkWindow) {
+                    e.preventDefault();
+                    triggerFullscreenShortcut('OK duplo');
+                    _lastOkTime = 0;
+                    return true;
+                }
+                _lastOkTime = now;
+            }
+        }
+    }
+
+    if (FS_SHORTCUTS.enableLongOk) {
+        if (phase === 'down') {
+            if ((k === 'Enter' || code === 13 || code === 23) && !_okHoldTimer && !_okHeld) {
+                const active = document.activeElement;
+                const tag = (active && active.tagName) || '';
+                const isInput = tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA';
+                const isInteractive = active && (
+                    active.tagName === 'BUTTON' ||
+                    active.classList.contains('channel-item') ||
+                    active.classList.contains('season-item') ||
+                    active.classList.contains('episode-item') ||
+                    active.classList.contains('profile-item') ||
+                    active.classList.contains('tab') ||
+                    active.classList.contains('content-tab')
+                );
+                if (!isInput && !isInteractive) {
+                    _okHoldTimer = setTimeout(() => {
+                        _okHeld = true;
+                        triggerFullscreenShortcut('OK longo');
+                    }, FS_SHORTCUTS.longOkHoldMs);
+                }
+            }
+        }
+        if (phase === 'up') {
+            if (_okHoldTimer) { clearTimeout(_okHoldTimer); _okHoldTimer = null; }
+            if (_okHeld) { _okHeld = false; e.preventDefault(); return true; }
+        }
+    }
+
+    return false;
+}
+
+// ============================================================
+// PROXY
+// ============================================================
+let PROXY_URL = localStorage.getItem('iptv_proxy') || '';
+
+function normalizeProxyBase(raw) {
+    if (!raw) return '';
+    let base = raw.trim();
+    base = base.replace(/[?&]url=.*$/i, '');
+    base = base.replace(/[?&]+$/, '');
+    if (!base.match(/^https?:\/\//i)) return '';
+    if (!base.endsWith('/') && !base.includes('?')) base += '/';
+    return base;
+}
+
+function applyProxy(url) {
+    if (!url) return url;
+    if (!PROXY_URL) return url;
+    if (url.startsWith(PROXY_URL)) return url;
+    if (!/^https?:\/\//i.test(url)) return url;
+    const sep = PROXY_URL.includes('?') ? '&' : '?';
+    return PROXY_URL + sep + 'url=' + encodeURIComponent(url);
+}
+
+function updateProxyIndicator() {
+    const el = document.getElementById('proxy-indicator');
+    if (PROXY_URL) { el.textContent = 'PROXY: ON'; el.className = 'proxy-indicator focusable active'; }
+    else { el.textContent = 'PROXY: OFF'; el.className = 'proxy-indicator focusable warning'; }
+}
+
+async function saveProxy() {
+    const raw = document.getElementById('proxy-url').value.trim();
+    const normalized = normalizeProxyBase(raw);
+    if (raw && !normalized) return tvAlert('URL inválida. Use http(s)://.../');
+    PROXY_URL = normalized;
+    if (PROXY_URL) {
+        localStorage.setItem('iptv_proxy', PROXY_URL);
+        document.getElementById('proxy-url').value = PROXY_URL;
+    } else {
+        localStorage.removeItem('iptv_proxy');
+    }
+    updateProxyIndicator();
+    statusEl.textContent = PROXY_URL ? 'Proxy salvo.' : 'Proxy removido.';
+}
+
+function clearProxy() {
+    PROXY_URL = '';
+    localStorage.removeItem('iptv_proxy');
+    document.getElementById('proxy-url').value = '';
+    updateProxyIndicator();
+}
+
+async function testProxy() {
+    const raw = document.getElementById('proxy-url').value.trim();
+    if (!raw) return tvAlert('Insira URL.');
+    const normalized = normalizeProxyBase(raw);
+    if (!normalized) return tvAlert('URL inválida. Use http(s)://.../');
+    const old = PROXY_URL;
+    PROXY_URL = normalized;
+    try {
+        const resp = await fetch(applyProxy('https://httpbin.org/get'));
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const data = await resp.json();
+        statusEl.textContent = '✅ Proxy OK! IP: ' + (data.origin || '?');
+    } catch (e) {
+        statusEl.textContent = '❌ Falha: ' + e.message;
+    } finally {
+        PROXY_URL = old;
+    }
+}
+
+// ============================================================
+// HEROES
+// ============================================================
+const HEROES = {
+    marvel: ['Homem de Ferro','Capitão América','Thor','Hulk','Viúva Negra','Homem-Aranha','Doutor Estranho','Pantera Negra','Capitã Marvel','Feiticeira Escarlate','Visão','Falcão','Soldado Invernal','Gavião Arqueiro','Star-Lord','Gamora','Rocket','Groot','Drax','Mantis','Shang-Chi','Ms. Marvel','Cavaleiro da Lua','Mulher-Hulk','Loki','Kate Bishop','Yelena','Sam Wilson'],
+    dc: ['Batman','Superman','Mulher-Maravilha','Flash','Aquaman','Ciborgue','Lanterna Verde','Arqueiro Verde','Canário Negro','Supergirl','Batwoman','Shazam','Adão Negro','Besouro Azul','Zatanna','Constantine','Asa Noturna','Estelar','Mutano','Ravena','Mulher-Gato','Arlequina','Pacificador','Caçador de Marte']
+};
+function generateHeroName() {
+    const univ = Math.random() > 0.5 ? 'marvel' : 'dc';
+    const list = HEROES[univ];
+    const base = list[Math.floor(Math.random() * list.length)];
+    return { name: `${base}_${String(Math.floor(Math.random() * 9000) + 1000)}`, universe: univ, base };
+}
+
+// ============================================================
+// PROFILES
+// ============================================================
+let profiles = [];
+let activeProfileId = null;
+let profileRenderLimit = 500;
+
+function saveProfiles() { saveProfilesToDB().catch(e => console.warn('saveProfiles:', e)); }
+
+function createProfile({ sourceType, sourceLabel, server, user, pass, validity, connections, contentCounts, bulkOrigin }) {
+    const hero = generateHeroName();
+    const profile = {
+        id: 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+        hero: hero.name, universe: hero.universe, sourceType, sourceLabel,
+        server: server || null, user: user || null, pass: pass || null,
+        validity: validity || null, maxConnections: connections || null,
+        activeConnections: 0, contentCounts: contentCounts || { live: 0, vod: 0, series: 0 },
+        bulkOrigin: bulkOrigin || false, createdAt: Date.now(), lastUsed: Date.now()
+    };
+    profiles.push(profile); activeProfileId = profile.id;
+    upsertProfileToDB(profile).catch(() => {});
+    scheduleRenderProfileList(); updateCurrentProfileUI();
+    return profile;
+}
+async function deleteProfile(id) {
+    if (!await tvConfirm('Remover este perfil?')) return;
+    profiles = profiles.filter(p => p.id !== id);
+    if (activeProfileId === id) activeProfileId = profiles.length ? profiles[0].id : null;
+    try {
+        const d = await openDB();
+        const tx = d.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).delete(id);
+        await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = () => rej(tx.error); });
+    } catch (e) {}
+    saveProfiles(); renderProfileList(); updateCurrentProfileUI();
+}
+async function deleteAllProfiles() {
+    if (!await tvConfirm(`Remover TODOS os ${profiles.length} perfis?`)) return;
+    profiles = []; activeProfileId = null;
+    try {
+        const d = await openDB();
+        const tx = d.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).clear();
+        await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = () => rej(tx.error); });
+    } catch (e) {}
+    saveProfiles(); renderProfileList(); updateCurrentProfileUI();
+}
+function activateProfile(id) {
+    const p = profiles.find(x => x.id === id);
+    if (!p) return;
+    activeProfileId = id; p.lastUsed = Date.now(); saveProfiles();
+    closeProfileMenu(); updateCurrentProfileUI();
+    if (p.sourceType === 'xtream' && p.server && p.user && p.pass) {
+        statusEl.textContent = `Reconectando ${p.hero}...`;
+        loadXtreamData(p.server, p.user, p.pass, p.id).catch(e => statusEl.textContent = 'Erro: ' + e.message);
+    } else statusEl.textContent = `Perfil ${p.hero} ativado.`;
+}
+function updateCurrentProfileUI() {
+    const active = profiles.find(p => p.id === activeProfileId);
+    document.getElementById('current-profile-name').textContent = active ? active.hero : 'Nenhum perfil';
+    document.getElementById('current-avatar').textContent = active ? (active.universe === 'marvel' ? '🦸' : '🦇') : '👤';
+    document.getElementById('active-conns').textContent = active ? active.activeConnections : 0;
+}
+function getValidityBadge(validity) {
+    if (!validity) return '<span class="profile-badge badge-unknown">Sem validade</span>';
+    const exp = new Date(validity);
+    if (isNaN(exp.getTime())) return '<span class="profile-badge badge-unknown">Sem validade</span>';
+    const d = Math.ceil((exp - new Date()) / 86400000);
+    if (d < 0) return `<span class="profile-badge badge-expired">Expirado</span>`;
+    if (d <= 7) return `<span class="profile-badge badge-expired">${d}d</span>`;
+    return `<span class="profile-badge badge-valid">Até ${exp.toLocaleDateString('pt-BR')}</span>`;
+}
+
+let renderProfileTimer = null;
+function scheduleRenderProfileList() {
+    if (renderProfileTimer) clearTimeout(renderProfileTimer);
+    renderProfileTimer = setTimeout(() => { renderProfileTimer = null; renderProfileList(); }, 300);
+}
+
+function renderProfileList() {
+    const body = document.getElementById('profile-list');
+    document.getElementById('profile-count').textContent = profiles.length + ' perfil' + (profiles.length !== 1 ? 's' : '');
+    if (!profiles.length) {
+        body.innerHTML = '<div class="empty-profiles">Nenhum perfil.</div>';
+        profileMenuFocusIndex = -1;
+        return;
+    }
+
+    body.innerHTML = '';
+    const sorted = [...profiles].sort((a, b) => b.lastUsed - a.lastUsed);
+    const visible = sorted.slice(0, profileRenderLimit);
+
+    visible.forEach((p, idx) => {
+        const div = document.createElement('div');
+        div.className = 'profile-item' + (p.id === activeProfileId ? ' active' : '');
+        div.dataset.profileId = p.id;
+        div.dataset.index = idx;
+        const connStr = p.maxConnections ? `${p.activeConnections}/${p.maxConnections}` : `${p.activeConnections}`;
+        div.innerHTML = `
+            <div class="profile-top">
+                <span class="profile-hero">${p.universe === 'marvel' ? '🦸' : '🦇'} ${p.hero}</span>
+                <span>${p.bulkOrigin ? '<span class="profile-badge badge-bulk">LOTE</span> ' : ''}${getValidityBadge(p.validity)}</span>
+            </div>
+            <div class="profile-meta">
+                <span>📡 ${p.sourceType.toUpperCase()}</span>
+                <span>🎬 ${p.contentCounts.live}</span>
+                <span>🎥 ${p.contentCounts.vod}</span>
+                <span>📽️ ${p.contentCounts.series}</span>
+                <span>🔌 ${connStr}</span>
+            </div>
+            <div class="profile-actions">
+                <button data-action="activate">ATIVAR</button>
+                <button class="danger" data-action="delete">EXCLUIR</button>
+            </div>`;
+        div.querySelector('[data-action="activate"]').addEventListener('click', (e) => {
+            e.stopPropagation(); activateProfile(p.id);
+        });
+        div.querySelector('[data-action="delete"]').addEventListener('click', (e) => {
+            e.stopPropagation(); deleteProfile(p.id);
+        });
+        div.addEventListener('click', (e) => {
+            if (!e.target.closest('button')) { setProfileMenuFocus(idx); activateProfile(p.id); }
+        });
+        body.appendChild(div);
+    });
+
+    if (sorted.length > profileRenderLimit) {
+        const remaining = sorted.length - profileRenderLimit;
+        const more = document.createElement('button');
+        more.className = 'profile-load-more';
+        more.textContent = `CARREGAR MAIS (+${Math.min(500, remaining)} de ${remaining})`;
+        more.addEventListener('click', (e) => {
+            e.stopPropagation();
+            profileRenderLimit += 500;
+            renderProfileList();
+        });
+        body.appendChild(more);
+    }
+
+    if (document.getElementById('user-menu-panel').classList.contains('open')) {
+        if (profileMenuFocusIndex < 0 || profileMenuFocusIndex >= visible.length) profileMenuFocusIndex = 0;
+        setProfileMenuFocus(profileMenuFocusIndex, false);
+    }
+}
+
+let profileMenuFocusIndex = 0;
+
+function setProfileMenuFocus(idx, scroll = true) {
+    const body = document.getElementById('profile-list');
+    const items = body.querySelectorAll('.profile-item');
+    if (!items.length) return;
+    if (idx < 0) idx = 0;
+    if (idx >= items.length) idx = items.length - 1;
+    items.forEach((el, i) => el.classList.toggle('focused', i === idx));
+    profileMenuFocusIndex = idx;
+    if (scroll) {
+        const el = items[idx];
+        const bodyRect = body.getBoundingClientRect();
+        const elRect = el.getBoundingClientRect();
+        if (elRect.top < bodyRect.top) {
+            body.scrollTop -= (bodyRect.top - elRect.top) + 12;
+        } else if (elRect.bottom > bodyRect.bottom) {
+            body.scrollTop += (elRect.bottom - bodyRect.bottom) + 12;
+        }
+    }
+}
+
+function openProfileMenu() {
+    const panel = document.getElementById('user-menu-panel');
+    panel.classList.add('open');
+    profileRenderLimit = 500;
+    profileMenuFocusIndex = 0;
+    renderProfileList();
+    document.getElementById('user-menu-btn').focus();
+    setTimeout(() => setProfileMenuFocus(0, true), 30);
+}
+
+function closeProfileMenu() {
+    document.getElementById('user-menu-panel').classList.remove('open');
+    document.getElementById('profile-list').querySelectorAll('.profile-item').forEach(el => el.classList.remove('focused'));
+    document.getElementById('user-menu-btn').focus();
+}
+
+function toggleUserMenu(event) {
+    if (event) event.stopPropagation();
+    const panel = document.getElementById('user-menu-panel');
+    if (panel.classList.contains('open')) closeProfileMenu();
+    else openProfileMenu();
+}
+
+document.addEventListener('click', (e) => {
+    const panel = document.getElementById('user-menu-panel');
+    const btn = document.getElementById('user-menu-btn');
+    if (panel.classList.contains('open') && !panel.contains(e.target) && !btn.contains(e.target)) closeProfileMenu();
+});
+
+function getFocusableElements() {
+    const selector = 'button, input, select, [tabindex]:not([tabindex="-1"]), .channel-item, .tab, .content-tab';
+    return Array.from(document.querySelectorAll(selector)).filter(el => {
+        if (el.disabled) return false;
+        const style = window.getComputedStyle(el);
+        if (style.display === 'none' || style.visibility === 'hidden') return false;
+        if (el.id === 'channel-list') return false;
+        if (el.closest('#user-menu-panel')) return false;
+        if (el.closest('#dialog-modal') && !el.closest('#dialog-modal.open')) return false;
+        if (el.closest('#seasons-panel') && !document.getElementById('seasons-panel').classList.contains('open')) return false;
+        if (el.offsetParent === null && el.tagName !== 'BODY') return false;
+        return true;
+    });
+}
+function focusElement(el) {
+    if (!el) return;
+    el.focus();
+    if (el.scrollIntoView) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+function moveFocus(direction) {
+    const focusables = getFocusableElements();
+    if (!focusables.length) return;
+    const current = document.activeElement;
+    const idx = focusables.indexOf(current);
+    if (idx === -1) { focusElement(focusables[0]); return; }
+    let next = idx;
+    if (direction === 'up') next = idx - 1;
+    else if (direction === 'down') next = idx + 1;
+    else if (direction === 'left') next = findSpatialNeighbor(focusables, current, 'left');
+    else if (direction === 'right') next = findSpatialNeighbor(focusables, current, 'right');
+    if (next < 0) next = 0;
+    if (next >= focusables.length) next = focusables.length - 1;
+    if (next !== idx) focusElement(focusables[next]);
+}
+function findSpatialNeighbor(focusables, current, direction) {
+    const r = current.getBoundingClientRect();
+    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    let best = -1, bestDist = Infinity;
+    focusables.forEach((el, i) => {
+        if (el === current) return;
+        const b = el.getBoundingClientRect();
+        if (b.width === 0 && b.height === 0) return;
+        const ex = b.left + b.width / 2, ey = b.top + b.height / 2;
+        if (direction === 'left' && ex >= cx - 10) return;
+        if (direction === 'right' && ex <= cx + 10) return;
+        const dist = Math.abs(ex - cx) + Math.abs(ey - cy) * 2;
+        if (dist < bestDist) { bestDist = dist; best = i; }
+    });
+    return best;
+}
+
+// ============================================================
+// Helpers de navegação entre colunas de séries
+// ============================================================
+function focusFirstEpisode() {
+    const first = document.querySelector('#episodes-list .episode-item');
+    if (first) { first.focus(); first.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+}
+function focusActiveSeason() {
+    const active = document.querySelector('#seasons-list .season-item.active')
+        || document.querySelector('#seasons-list .season-item');
+    if (active) { active.focus(); active.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+}
+function moveWithinList(listSelector, dir) {
+    const items = Array.from(document.querySelectorAll(listSelector));
+    if (!items.length) return false;
+    const idx = items.indexOf(document.activeElement);
+    if (idx === -1) { items[0].focus(); items[0].scrollIntoView({ block: 'nearest', behavior: 'smooth' }); return true; }
+    let next = idx + (dir === 'down' ? 1 : -1);
+    if (next < 0) next = 0;
+    if (next >= items.length) next = items.length - 1;
+    if (next !== idx) {
+        items[next].focus();
+        items[next].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+    return true;
+}
+
+// ============================================================
+// KEYDOWN PRINCIPAL
+// ============================================================
+document.addEventListener('keydown', (e) => {
+    if (handleFullscreenShortcut(e, 'down')) return;
+
+    if (document.getElementById('seasons-panel').classList.contains('open')) {
+        const k = e.key;
+
+        if (k === 'Escape' || k === 'Backspace' || e.keyCode === 4 || k === 'BrowserBack') {
+            e.preventDefault(); closeSeasonsPanel(); return;
+        }
+
+        const activeEl = document.activeElement;
+        const inSeasons = activeEl && activeEl.classList.contains('season-item');
+        const inEpisodes = activeEl && activeEl.classList.contains('episode-item');
+        const onBack = activeEl && activeEl.id === 'seasons-back-btn';
+
+        if (k === 'ArrowDown') {
+            e.preventDefault();
+            if (inEpisodes) { moveWithinList('#episodes-list .episode-item', 'down'); return; }
+            if (inSeasons) { moveWithinList('#seasons-list .season-item', 'down'); return; }
+            if (onBack) { focusActiveSeason(); return; }
+            focusActiveSeason();
+            return;
+        }
+        if (k === 'ArrowUp') {
+            e.preventDefault();
+            if (inEpisodes) {
+                const items = Array.from(document.querySelectorAll('#episodes-list .episode-item'));
+                if (items.indexOf(activeEl) === 0) { focusActiveSeason(); return; }
+                moveWithinList('#episodes-list .episode-item', 'up'); return;
+            }
+            if (inSeasons) {
+                const items = Array.from(document.querySelectorAll('#seasons-list .season-item'));
+                if (items.indexOf(activeEl) === 0) {
+                    document.getElementById('seasons-back-btn').focus();
+                    return;
+                }
+                moveWithinList('#seasons-list .season-item', 'up'); return;
+            }
+            return;
+        }
+        if (k === 'ArrowRight') {
+            e.preventDefault();
+            if (inSeasons) {
+                selectSeason(activeEl.dataset.season);
+                setTimeout(focusFirstEpisode, 20);
+            }
+            return;
+        }
+        if (k === 'ArrowLeft') {
+            e.preventDefault();
+            if (inEpisodes) { focusActiveSeason(); return; }
+            if (onBack) { focusActiveSeason(); return; }
+            return;
+        }
+        return;
+    }
+
+    if (document.getElementById('dialog-modal').classList.contains('open')) {
+        if (e.key === 'Escape') document.getElementById('dialog-cancel').click();
+        return;
+    }
+
+    if (document.body.classList.contains('video-fullscreen')) {
+        if (e.key === 'Escape' || e.key === 'Backspace' || e.keyCode === 4 || e.key === 'BrowserBack') {
+            e.preventDefault(); exitFullscreen(); return;
+        }
+        if (e.key === 'MediaPlayPause' || e.keyCode === 179) {
+            e.preventDefault(); video.paused ? video.play() : video.pause(); return;
+        }
+        return;
+    }
+
+    const profileMenuOpen = document.getElementById('user-menu-panel').classList.contains('open');
+    if (profileMenuOpen) {
+        if (e.key === 'Escape' || e.key === 'Backspace' || e.keyCode === 4 || e.key === 'BrowserBack') {
+            e.preventDefault(); closeProfileMenu(); return;
+        }
+        if (e.key === 'ArrowDown') { e.preventDefault(); setProfileMenuFocus(profileMenuFocusIndex + 1, true); return; }
+        if (e.key === 'ArrowUp') { e.preventDefault(); setProfileMenuFocus(profileMenuFocusIndex - 1, true); return; }
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const body = document.getElementById('profile-list');
+            const items = body.querySelectorAll('.profile-item');
+            const focused = items[profileMenuFocusIndex];
+            if (focused) {
+                const id = focused.dataset.profileId;
+                if (id) activateProfile(id);
+            } else {
+                const more = body.querySelector('.profile-load-more');
+                if (more) more.click();
+            }
+            return;
+        }
+        return;
+    }
+
+    switch (e.key) {
+        case 'ArrowUp': e.preventDefault(); moveFocus('up'); break;
+        case 'ArrowDown': e.preventDefault(); moveFocus('down'); break;
+        case 'ArrowLeft': e.preventDefault(); moveFocus('left'); break;
+        case 'ArrowRight': e.preventDefault(); moveFocus('right'); break;
+        case 'Enter':
+            if (document.activeElement.classList.contains('channel-item')) {
+                e.preventDefault(); document.activeElement.click();
+            }
+            break;
+        case 'Escape': case 'Backspace': case 'BrowserBack':
+            e.preventDefault(); handleBack(); break;
+        case 'MediaPlayPause':
+            e.preventDefault(); video.paused ? video.play() : video.pause(); break;
+        case 'f': case 'F':
+            if (e.ctrlKey || e.metaKey || e.altKey) return;
+            e.preventDefault(); toggleFullscreen(); break;
+    }
+});
+
+document.addEventListener('keyup', (e) => {
+    handleFullscreenShortcut(e, 'up');
+});
+
+function handleBack() {
+    if (document.getElementById('seasons-panel').classList.contains('open')) { closeSeasonsPanel(); return; }
+    if (document.fullscreenElement) { exitFullscreen(); return; }
+    if (document.getElementById('bulk-modal').classList.contains('open')) { closeBulkModal(); return; }
+    if (document.getElementById('user-menu-panel').classList.contains('open')) { closeProfileMenu(); return; }
+    const first = document.querySelector('.channel-item');
+    if (first) focusElement(first);
+}
+
+window.addEventListener('load', () => {
+    setTimeout(() => {
+        const first = document.querySelector('.tab.active');
+        if (first) focusElement(first);
+    }, 300);
+});
+
+// ============================================================
+// SERVICE WORKER
+// ============================================================
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js', { scope: './' })
+            .then(reg => console.log('✅ SW:', reg.scope))
+            .catch(err => console.warn('⚠️ SW:', err));
+    });
+}
+
+// ============================================================
+// EXPORT / BULK
+// ============================================================
+function exportProfilesTXT() {
+    if (!profiles.length) return tvAlert('Sem perfis.');
+    const lines = ['# IPTV Hero Pro Profiles'];
+    profiles.forEach(p => {
+        lines.push([p.sourceType, p.sourceLabel || '', p.server || '', p.user || '', p.pass || '',
+            p.validity || '', p.maxConnections || '', p.hero,
+            p.contentCounts.live, p.contentCounts.vod, p.contentCounts.series].join('|'));
+    });
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'iptv_hero_profiles_' + new Date().toISOString().slice(0, 10) + '.txt';
+    a.click(); URL.revokeObjectURL(a.href);
+}
+let bulkCancelled = false;
+function loadBulkTXT(event) {
+    const file = event.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        const text = e.target.result;
+        const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+        if (!lines.length) return tvAlert('Arquivo vazio.');
+        let lists = lines.length > 100000 ? lines.slice(0, 100000) : lines;
+        if (!await tvConfirm(`Processar ${lists.length} listas?`)) { event.target.value = ''; return; }
+        await processBulk(lists); event.target.value = '';
+    };
+    reader.readAsText(file);
+}
+
+// ============================================================
+// HERO LISTA — URL nova + detecção automática
+// ============================================================
+const HERO_LIST_URL = 'https://raw.githubusercontent.com/NOSLIUDE/Satsil/refs/heads/main/all_in_one.txt';
+const HERO_LIST_META_KEY = 'hero_list_meta_v2';
+
+async function sha256Hex(text) {
+    try {
+        const buf = new TextEncoder().encode(text);
+        const digest = await crypto.subtle.digest('SHA-256', buf);
+        return Array.from(new Uint8Array(digest))
+            .map(b => b.toString(16).padStart(2, '0')).join('');
+    } catch (e) {
+        let h = 5381;
+        for (let i = 0; i < text.length; i++) h = ((h << 5) + h + text.charCodeAt(i)) | 0;
+        return 'djb2_' + (h >>> 0).toString(16);
+    }
+}
+function getHeroListMeta() {
+    try { return JSON.parse(localStorage.getItem(HERO_LIST_META_KEY) || 'null'); }
+    catch { return null; }
+}
+function setHeroListMeta(meta) {
+    try { localStorage.setItem(HERO_LIST_META_KEY, JSON.stringify(meta)); } catch {}
+}
+function heroUrlWithBust() {
+    const bust = Date.now();
+    return HERO_LIST_URL + (HERO_LIST_URL.includes('?') ? '&' : '?') + 't=' + bust;
+}
+function parseHeroUrls(text) {
+    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+    return lines.map(l => {
+        const idx = l.indexOf(' | ');
+        return idx > -1 ? l.substring(0, idx).trim() : l;
+    }).filter(u => u.startsWith('http'));
+}
+
+async function loadHeroList() {
+    const counter = document.getElementById('hero-counter');
+    counter.textContent = 'Verificando atualizações...';
+
+    let text;
+    try {
+        const resp = await fetch(applyProxy(heroUrlWithBust()), { cache: 'no-store' });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        text = await resp.text();
+    } catch (e) {
+        counter.textContent = '';
+        return tvAlert('Falha ao baixar Hero Lista: ' + e.message);
+    }
+
+    const hash = await sha256Hex(text);
+    const prev = getHeroListMeta();
+    const isFirstEver = !prev;
+    const isNew = !prev || prev.hash !== hash;
+
+    if (!isNew && !isFirstEver) {
+        counter.textContent = `✅ Sem alterações (${new Date(prev.checkedAt).toLocaleString('pt-BR')})`;
+        const reprocess = await showDialog({
+            title: '📡 HERO LISTA',
+            message: `A lista não mudou desde ${new Date(prev.checkedAt).toLocaleString('pt-BR')}.\n\nDeseja reprocessar mesmo assim?`,
+            showCancel: true, okText: 'Reprocessar', cancelText: 'Cancelar'
+        });
+        if (!reprocess) return;
+    } else if (isNew && !isFirstEver) {
+        counter.textContent = '🆕 Nova versão detectada!';
+    }
+
+    const urls = parseHeroUrls(text);
+    counter.textContent = `${urls.length} listas${isNew && !isFirstEver ? ' 🆕' : ''}`;
+    if (!urls.length) return tvAlert('Nenhuma lista válida na Hero Lista.');
+
+    const label = isFirstEver
+        ? `Processar ${urls.length} listas da Hero Lista? (primeira vez)`
+        : `Processar ${urls.length} listas? (atualizada)`;
+
+    if (!await tvConfirm(label)) { counter.textContent = ''; return; }
+
+    setHeroListMeta({ hash, checkedAt: Date.now(), urlCount: urls.length });
+    await processBulk(urls, true);
+    counter.textContent = `✅ Concluído (${new Date().toLocaleTimeString('pt-BR')})`;
+}
+
+async function checkHeroListUpdate() {
+    const counter = document.getElementById('hero-counter');
+    counter.textContent = 'Verificando...';
+    try {
+        const resp = await fetch(applyProxy(heroUrlWithBust()), { cache: 'no-store' });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const text = await resp.text();
+        const hash = await sha256Hex(text);
+        const prev = getHeroListMeta();
+        if (!prev) {
+            counter.textContent = `📡 Sem versão anterior. ${parseHeroUrls(text).length} listas disponíveis.`;
+            return;
+        }
+        if (hash === prev.hash) {
+            counter.textContent = `✅ Atualizada (${new Date(prev.checkedAt).toLocaleString('pt-BR')})`;
+        } else {
+            counter.textContent = `🆕 Nova versão disponível! (${parseHeroUrls(text).length} listas)`;
+        }
+    } catch (e) {
+        counter.textContent = '❌ ' + e.message;
+    }
+}
+
+async function processBulk(lists, isHero = false) {
+    bulkCancelled = false;
+    const modal = document.getElementById('bulk-modal');
+    const msg = document.getElementById('bulk-modal-msg');
+    const progress = document.getElementById('bulk-progress');
+    const log = document.getElementById('bulk-log');
+    const cancelBtn = document.getElementById('bulk-cancel-btn');
+    const closeBtn = document.getElementById('bulk-close-btn');
+    modal.classList.add('open');
+    cancelBtn.style.display = 'block'; closeBtn.style.display = 'none';
+    log.innerHTML = ''; progress.style.width = '0%';
+    setTimeout(() => focusElement(cancelBtn), 100);
+    let success = 0, failed = 0, skipped = 0;
+    const total = lists.length, CONCURRENCY = 25;
+    const processOne = async (line, index) => {
+        if (bulkCancelled) return;
+        try {
+            const r = await processOneBulkLine(line);
+            if (r.ok) { success++; logLine(log, `✅ [${index}] ${r.hero} (${r.type}) - ${r.count}`); }
+            else { failed++; logLine(log, `⚠️ [${index}] ${r.error}`); }
+        } catch (e) { failed++; logLine(log, `❌ [${index}] ${e.message}`); }
+    };
+    for (let i = 0; i < total; i += CONCURRENCY) {
+        if (bulkCancelled) { skipped = total - i; logLine(log, `⏹️ Cancelado.`); break; }
+        const chunk = lists.slice(i, i + CONCURRENCY);
+        msg.textContent = `${i + 1}/${total}: ${lists[i].substring(0, 60)}...`;
+        progress.style.width = ((i + 1) / total * 100) + '%';
+        await Promise.all(chunk.map((line, j) => processOne(line, i + j + 1)));
+        if (i % (CONCURRENCY * 4) === 0) { saveProfiles(); if (!isHero) scheduleRenderProfileList(); }
+    }
+    saveProfiles(); renderProfileList(); updateCurrentProfileUI();
+    msg.textContent = `Concluído! ✅ ${success} | ❌ ${failed} | ⏹️ ${skipped}`;
+    cancelBtn.style.display = 'none'; closeBtn.style.display = 'block';
+    closeBtn.textContent = `FECHAR (${success} CRIADOS)`;
+    setTimeout(() => focusElement(closeBtn), 100);
+}
+function cancelBulk() { bulkCancelled = true; }
+function closeBulkModal() { document.getElementById('bulk-modal').classList.remove('open'); document.getElementById('bulk-log').innerHTML = ''; }
+function logLine(el, text) { const d = document.createElement('div'); d.textContent = text; el.appendChild(d); el.scrollTop = el.scrollHeight; }
+async function processOneBulkLine(line) {
+    const creds = detectXtreamPure(line);
+    if (creds) return await bulkLoadXtream(creds.server, creds.username, creds.password);
+    if (line.match(/^https?:\/\//i)) {
+        try {
+            const resp = await fetch(applyProxy(line));
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            const text = await resp.text();
+            if (text.includes('#EXTM3U') || text.includes('#EXTINF')) {
+                const ch = parseM3U(text);
+                if (!ch.length) throw new Error('M3U vazia');
+                const p = createProfile({ sourceType: 'm3u', sourceLabel: line.substring(0, 100), contentCounts: { live: ch.length, vod: 0, series: 0 }, bulkOrigin: true });
+                return { ok: true, hero: p.hero, type: 'M3U', count: ch.length };
+            }
+            const ch = parseTXT(text);
+            if (ch.length) {
+                const p = createProfile({ sourceType: 'txt', sourceLabel: line.substring(0, 100), contentCounts: { live: ch.length, vod: 0, series: 0 }, bulkOrigin: true });
+                return { ok: true, hero: p.hero, type: 'TXT', count: ch.length };
+            }
+            throw new Error('Formato desconhecido');
+        } catch (e) { return { ok: false, error: e.message }; }
+    }
+    const inline = parseInlineChannel(line);
+    if (inline) {
+        const p = createProfile({ sourceType: 'txt', sourceLabel: inline.name, contentCounts: { live: 1, vod: 0, series: 0 }, bulkOrigin: true });
+        return { ok: true, hero: p.hero, type: 'inline', count: 1 };
+    }
+    return { ok: false, error: 'Não reconhecido' };
+}
+async function bulkLoadXtream(server, user, pass) {
+    const base = `${server.replace(/\/$/, '')}/player_api.php?username=${encodeURIComponent(user)}&password=${encodeURIComponent(pass)}`;
+    const auth = await (await fetch(applyProxy(base))).json();
+    if (!auth.user_info || auth.user_info.auth === 0) throw new Error('Credenciais inválidas');
+    let validity = null;
+    if (auth.user_info.exp_date) { const x = parseInt(auth.user_info.exp_date); if (x > 0) validity = new Date(x * 1000).toISOString(); }
+    let maxC = auth.user_info.max_connections ? parseInt(auth.user_info.max_connections) : null;
+    let liveC = 0, vodC = 0, serC = 0;
+    try { const d = await (await fetch(applyProxy(base + '&action=get_live_streams'))).json(); liveC = Array.isArray(d) ? d.length : 0; } catch (e) {}
+    try { const d = await (await fetch(applyProxy(base + '&action=get_vod_streams'))).json(); vodC = Array.isArray(d) ? d.length : 0; } catch (e) {}
+    try { const d = await (await fetch(applyProxy(base + '&action=get_series'))).json(); serC = Array.isArray(d) ? d.length : 0; } catch (e) {}
+    const p = createProfile({ sourceType: 'xtream', sourceLabel: server, server, user, pass, validity, connections: maxC, contentCounts: { live: liveC, vod: vodC, series: serC }, bulkOrigin: true });
+    return { ok: true, hero: p.hero, type: 'XTREAM', count: liveC + vodC + serC };
+}
+
+// ============================================================
+// STATE
+// ============================================================
+let currentPlaylist = null, hls = null, currentContent = 'live';
+let mpegtsPlayer = null, currentPlaybackAttempt = 0, playbackFallbackTimer = null;
+const video = document.getElementById('video');
+const statusEl = document.getElementById('status-overlay');
+const listEl = document.getElementById('channel-list');
+const categoryFilter = document.getElementById('category-filter');
+
+function switchTab(tabId) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tabId));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === tabId));
+}
+
+// ============================================================
+// PARSERS
+// ============================================================
+function parseM3U(text) {
+    const lines = text.split(/\r?\n/), ch = [];
+    let info = null;
+    for (let l of lines) {
+        l = l.trim(); if (!l) continue;
+        if (l.startsWith('#EXTINF:')) {
+            const n = l.match(/,(.*)$/), g = l.match(/group-title="([^"]*)"/);
+            info = { name: n ? n[1].trim() : 'Canal', group: g ? g[1] : 'Geral', url: null };
+        } else if (!l.startsWith('#') && info) { info.url = l; ch.push(info); info = null; }
+    }
+    return ch;
+}
+function parseTXT(text) {
+    const lines = text.split(/\r?\n/), ch = [];
+    for (let l of lines) {
+        l = l.trim(); if (!l || l.startsWith('#')) continue;
+        const inline = parseInlineChannel(l);
+        if (inline) ch.push({ name: inline.name, url: inline.url, group: 'TXT' });
+    }
+    return ch;
+}
+function parseInlineChannel(line) {
+    if (line.includes(',')) {
+        const parts = line.split(',');
+        if (parts[0].match(/^https?:\/\//i)) return { url: parts[0].trim(), name: parts[1]?.trim() || 'Canal' };
+        if (parts[1]?.match(/^https?:\/\//i)) return { name: parts[0].trim(), url: parts[1].trim() };
+    } else if (line.match(/^https?:\/\//i)) return { name: 'Canal', url: line };
+    return null;
+}
+function detectXtreamPure(text) {
+    const pats = [
+        /https?:\/\/[^\s]+\/get\.php\?[^\s]*username=([^&\s]+)[^\s]*password=([^&\s]+)/i,
+        /https?:\/\/[^\s]+\/player_api\.php\?[^\s]*username=([^&\s]+)[^\s]*password=([^&\s]+)/i
+    ];
+    for (const p of pats) {
+        const m = text.match(p);
+        if (m) { const h = text.match(/(https?:\/\/[^\/\s]+)/); if (h) return { server: h[1], username: m[1], password: m[2] }; }
+    }
+    return null;
+}
+
+// ============================================================
+// XTREAM
+// ============================================================
+async function loadXtreamData(server, user, pass, existingProfileId) {
+    const base = `${server.replace(/\/$/, '')}/player_api.php?username=${encodeURIComponent(user)}&password=${encodeURIComponent(pass)}`;
+    statusEl.textContent = 'Autenticando...';
+    const auth = await (await fetch(applyProxy(base))).json();
+    if (!auth.user_info || auth.user_info.auth === 0) throw new Error('Credenciais inválidas');
+    let validity = null;
+    if (auth.user_info.exp_date) { const x = parseInt(auth.user_info.exp_date); if (x > 0) validity = new Date(x * 1000).toISOString(); }
+    let maxC = auth.user_info.max_connections ? parseInt(auth.user_info.max_connections) : null;
+    let activeC = auth.user_info.active_cons ? parseInt(auth.user_info.active_cons) : 0;
+    const live = [], vod = [], series = [];
+    try {
+        const [c, s] = await Promise.all([fetch(applyProxy(base + '&action=get_live_categories')).then(r => r.json()), fetch(applyProxy(base + '&action=get_live_streams')).then(r => r.json())]);
+        const cm = {}; (Array.isArray(c) ? c : []).forEach(x => cm[x.category_id] = x.category_name);
+        (Array.isArray(s) ? s : []).forEach(x => live.push({ name: x.name || 'Canal', group: cm[x.category_id] || 'Geral', url: `${server}/live/${encodeURIComponent(user)}/${encodeURIComponent(pass)}/${x.stream_id}.m3u8`, type: 'live', id: x.stream_id }));
+    } catch (e) {}
+    try {
+        const [c, s] = await Promise.all([fetch(applyProxy(base + '&action=get_vod_categories')).then(r => r.json()), fetch(applyProxy(base + '&action=get_vod_streams')).then(r => r.json())]);
+        const cm = {}; (Array.isArray(c) ? c : []).forEach(x => cm[x.category_id] = x.category_name);
+        (Array.isArray(s) ? s : []).forEach(x => vod.push({ name: x.name || 'Filme', group: cm[x.category_id] || 'Geral', url: `${server}/movie/${encodeURIComponent(user)}/${encodeURIComponent(pass)}/${x.stream_id}.${x.container_extension || 'mp4'}`, type: 'vod', id: x.stream_id }));
+    } catch (e) {}
+    try {
+        const [c, s] = await Promise.all([fetch(applyProxy(base + '&action=get_series_categories')).then(r => r.json()), fetch(applyProxy(base + '&action=get_series')).then(r => r.json())]);
+        const cm = {}; (Array.isArray(c) ? c : []).forEach(x => cm[x.category_id] = x.category_name);
+        (Array.isArray(s) ? s : []).forEach(x => series.push({ name: x.name || 'Série', group: cm[x.category_id] || 'Geral', url: null, type: 'series', id: x.series_id }));
+    } catch (e) {}
+    currentPlaylist = { live, vod, series, sourceType: 'xtream', server, user, pass };
+    if (existingProfileId) {
+        const p = profiles.find(x => x.id === existingProfileId);
+        if (p) { p.validity = validity; p.maxConnections = maxC; p.activeConnections = activeC; p.contentCounts = { live: live.length, vod: vod.length, series: series.length }; p.lastUsed = Date.now(); saveProfiles(); renderProfileList(); updateCurrentProfileUI(); }
+    } else {
+        createProfile({ sourceType: 'xtream', sourceLabel: server, server, user, pass, validity, connections: maxC, contentCounts: { live: live.length, vod: vod.length, series: series.length } });
+        const last = profiles[profiles.length - 1];
+        if (last) { last.activeConnections = activeC; saveProfiles(); renderProfileList(); updateCurrentProfileUI(); }
+    }
+    statusEl.textContent = `Xtream | Live:${live.length} VOD:${vod.length} Séries:${series.length}`;
+    switchContent('live');
+}
+async function loadXtream() {
+    const s = document.getElementById('xc-server').value.trim().replace(/\/$/, '');
+    const u = document.getElementById('xc-user').value.trim();
+    const p = document.getElementById('xc-pass').value.trim();
+    if (!s || !u || !p) return tvAlert('Preencha servidor, usuário e senha.');
+    try { await loadXtreamData(s, u, p); } catch (e) { statusEl.textContent = 'Erro: ' + e.message; tvAlert('Falha: ' + e.message); }
+}
+
+// ============================================================
+// CONTENT
+// ============================================================
+function switchContent(type) {
+    currentContent = type;
+    document.querySelectorAll('.content-tab').forEach(t => t.classList.toggle('active', t.dataset.content === type));
+    populateCategories(); renderContentList();
+}
+function populateCategories() {
+    if (!currentPlaylist) return;
+    const items = currentPlaylist[currentContent] || [];
+    const cats = [...new Set(items.map(i => i.group))].sort();
+    categoryFilter.innerHTML = '<option value="">Todas</option>';
+    cats.forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; categoryFilter.appendChild(o); });
+}
+function filterChannels() { renderContentList(); }
+function renderContentList() {
+    if (!currentPlaylist) return;
+    const items = currentPlaylist[currentContent] || [];
+    const filter = categoryFilter.value;
+    const filtered = filter ? items.filter(i => i.group === filter) : items;
+    listEl.innerHTML = '';
+    if (!filtered.length) { listEl.innerHTML = '<div style="padding:24px;color:var(--text-dim);text-align:center;font-size:0.85rem;">Nenhum item.</div>'; return; }
+    filtered.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'channel-item focusable';
+        div.tabIndex = 0;
+        div.innerHTML = `<span>${escapeHtml(item.name)}</span><span class="badge">${escapeHtml(item.group || 'Geral')}</span>`;
+        if (item.type === 'series') {
+            div.onclick = () => {
+                document.querySelectorAll('.channel-item').forEach(e => e.classList.remove('active'));
+                div.classList.add('active');
+                openSeasonsPanel(item);
+            };
+        } else {
+            div.onclick = () => playItem(item, div);
+        }
+        listEl.appendChild(div);
+    });
+    if (filtered.length && document.activeElement === listEl) focusElement(listEl.querySelector('.channel-item'));
+}
+
+// ============================================================
+// SÉRIES: TEMPORADAS / EPISÓDIOS
+// ============================================================
+let seasonsPanelState = {
+    seriesId: null,
+    seriesName: '',
+    currentSeason: null,
+};
+const seriesInfoCache = {};
+
+function openSeasonsPanel(seriesItem) {
+    const panel = document.getElementById('seasons-panel');
+    panel.classList.add('open');
+    document.getElementById('seasons-title').textContent = seriesItem.name || 'Série';
+    document.getElementById('seasons-list').innerHTML = '<div class="seasons-loading">Carregando temporadas...</div>';
+    document.getElementById('episodes-list').innerHTML = '';
+    document.getElementById('episodes-col-title').textContent = 'Episódios';
+
+    seasonsPanelState = {
+        seriesId: seriesItem.id,
+        seriesName: seriesItem.name || 'Série',
+        currentSeason: null,
+    };
+
+    loadSeriesInfo(seriesItem.id).catch(err => {
+        document.getElementById('seasons-list').innerHTML =
+            `<div class="seasons-error">Erro: ${escapeHtml(err.message)}</div>`;
+    });
+}
+
+function closeSeasonsPanel() {
+    document.getElementById('seasons-panel').classList.remove('open');
+    const active = document.querySelector('.channel-item.active');
+    if (active) active.focus();
+}
+
+async function loadSeriesInfo(seriesId) {
+    if (seriesInfoCache[seriesId]) {
+        renderSeasons(seriesInfoCache[seriesId]);
+        return;
+    }
+    if (!currentPlaylist || currentPlaylist.sourceType !== 'xtream') {
+        throw new Error('Séries só funcionam com perfil Xtream');
+    }
+    const base = `${currentPlaylist.server}/player_api.php?username=${encodeURIComponent(currentPlaylist.user)}&password=${encodeURIComponent(currentPlaylist.pass)}&action=get_series_info&series_id=${seriesId}`;
+    const resp = await fetch(applyProxy(base));
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+
+    const bySeason = {};
+    if (data && data.episodes && typeof data.episodes === 'object') {
+        Object.keys(data.episodes).forEach(seasonNum => {
+            const eps = Array.isArray(data.episodes[seasonNum]) ? data.episodes[seasonNum] : [];
+            bySeason[seasonNum] = eps.map(ep => {
+                const id = ep.id ?? ep.episode_id ?? ep.stream_id ?? ep.vod_id ?? null;
+                return {
+                    ...ep,
+                    id,
+                    episode_num: ep.episode_num ?? ep.episode ?? ep.num ?? 0,
+                    title: ep.title ?? ep.name ?? ep.episode_title ?? null,
+                    container_extension: ep.container_extension ?? ep.ext ?? ep.extension ?? 'mp4',
+                    duration: ep.duration ?? ep.info?.duration ?? null,
+                };
+            }).filter(ep => ep.id != null)
+              .sort((a, b) => {
+                  const na = parseFloat(a.episode_num) || 0;
+                  const nb = parseFloat(b.episode_num) || 0;
+                  return na - nb;
+              });
+        });
+    }
+    const orderedSeasons = {};
+    Object.keys(bySeason)
+        .sort((a, b) => (parseFloat(a) || 0) - (parseFloat(b) || 0))
+        .forEach(k => { orderedSeasons[k] = bySeason[k]; });
+
+    seriesInfoCache[seriesId] = orderedSeasons;
+    renderSeasons(orderedSeasons);
+}
+
+function renderSeasons(bySeason) {
+    const seasonsKeys = Object.keys(bySeason);
+    const listEl = document.getElementById('seasons-list');
+
+    if (!seasonsKeys.length) {
+        listEl.innerHTML = '<div class="seasons-error">Nenhuma temporada encontrada</div>';
+        document.getElementById('episodes-list').innerHTML = '';
+        return;
+    }
+
+    listEl.innerHTML = '';
+    seasonsKeys.forEach((seasonNum, idx) => {
+        const eps = bySeason[seasonNum] || [];
+        const div = document.createElement('div');
+        div.className = 'season-item';
+        div.dataset.season = seasonNum;
+        div.tabIndex = 0;
+        div.innerHTML = `<span>Temporada ${escapeHtml(seasonNum)}</span><span class="count">${eps.length}</span>`;
+        div.onclick = () => { selectSeason(seasonNum); focusFirstEpisode(); };
+        div.onkeydown = (e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectSeason(seasonNum); focusFirstEpisode(); }
+        };
+        listEl.appendChild(div);
+    });
+
+    selectSeason(seasonsKeys[0]);
+    const first = listEl.querySelector('.season-item');
+    if (first) { first.classList.add('active'); setTimeout(() => first.focus(), 30); }
+}
+
+function selectSeason(seasonNum) {
+    seasonsPanelState.currentSeason = seasonNum;
+    document.querySelectorAll('#seasons-list .season-item').forEach(el => {
+        el.classList.toggle('active', el.dataset.season === String(seasonNum));
+    });
+    const eps = (seriesInfoCache[seasonsPanelState.seriesId] || {})[seasonNum] || [];
+    document.getElementById('episodes-col-title').textContent = `Episódios — Temporada ${seasonNum} (${eps.length})`;
+    renderEpisodes(eps, seasonNum);
+}
+
+function renderEpisodes(episodes, seasonNum) {
+    const listEl = document.getElementById('episodes-list');
+    listEl.innerHTML = '';
+    if (!episodes.length) {
+        listEl.innerHTML = '<div class="seasons-error">Nenhum episódio nesta temporada</div>';
+        return;
+    }
+    episodes.forEach((ep, idx) => {
+        const div = document.createElement('div');
+        div.className = 'episode-item';
+        div.tabIndex = 0;
+        const epNum = ep.episode_num || (idx + 1);
+        const title = ep.title || `Episódio ${epNum}`;
+        const ext = ep.container_extension || 'mp4';
+        div.innerHTML = `
+            <span class="ep-title">E${String(epNum).padStart(2, '0')} — ${escapeHtml(title)}</span>
+            <span class="ep-meta">T${escapeHtml(seasonNum)} • ${escapeHtml(ext.toUpperCase())}${ep.duration ? ' • ' + escapeHtml(String(ep.duration)) : ''}</span>
+        `;
+        div.onclick = () => playEpisode(ep, seasonNum);
+        div.onkeydown = (e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); playEpisode(ep, seasonNum); }
+        };
+        listEl.appendChild(div);
+    });
+}
+
+// >>> Reprodução de série: usa type 'series-episode' (pipeline Código 1)
+function playEpisode(ep, seasonNum) {
+    document.querySelectorAll('#episodes-list .episode-item').forEach(el => el.classList.remove('active'));
+    const items = document.querySelectorAll('#episodes-list .episode-item');
+    const idx = (seriesInfoCache[seasonsPanelState.seriesId]?.[seasonNum] || []).indexOf(ep);
+    if (items[idx]) items[idx].classList.add('active');
+
+    if (ep.id == null) {
+        statusEl.textContent = 'Erro: episódio sem ID';
+        console.warn('[SÉRIE] episódio sem id:', ep);
+        return;
+    }
+
+    const epId = ep.id;
+    const ext = ep.container_extension || 'mp4';
+    const url = `${currentPlaylist.server}/series/${encodeURIComponent(currentPlaylist.user)}/${encodeURIComponent(currentPlaylist.pass)}/${epId}.${ext}`;
+
+    const epNum = ep.episode_num || '?';
+    const epTitle = ep.title || `Episódio ${epNum}`;
+    const fakeItem = {
+        name: `${seasonsPanelState.seriesName} — T${seasonNum}E${String(epNum).padStart(2, '0')} — ${epTitle}`,
+        url: url,
+        type: 'series-episode',
+    };
+
+    closeSeasonsPanel();
+    const fakeEl = document.querySelector('.channel-item.active');
+    playItem(fakeItem, fakeEl);
+}
+
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    })[c]);
+}
+
+// ============================================================
+// PLAYBACK (versão Código 1)
+// ============================================================
+function destroyAllPlayers() {
+    if (hls) { try { hls.destroy(); } catch(e) {} hls = null; }
+    if (mpegtsPlayer) { try { mpegtsPlayer.destroy(); } catch(e) {} mpegtsPlayer = null; }
+    if (playbackFallbackTimer) { clearTimeout(playbackFallbackTimer); playbackFallbackTimer = null; }
+    video.onplaying = null; video.onerror = null;
+    video.pause(); video.removeAttribute('src');
+    try { video.load(); } catch(e) {}
+}
+
+async function playItem(item, el) {
+    document.querySelectorAll('.channel-item').forEach(e => e.classList.remove('active'));
+    if (el) el.classList.add('active');
+    document.getElementById('current-channel').textContent = item.name;
+    destroyAllPlayers();
+    statusEl.textContent = 'Carregando: ' + item.name;
+    let url = item.url;
+    // Fallback defensivo: só ocorre se algum fluxo antigo mandar type 'series' sem url
+    if ((item.type === 'series' || item.type === 'series-episode') && !url) {
+        try {
+            const base = `${currentPlaylist.server}/player_api.php?username=${encodeURIComponent(currentPlaylist.user)}&password=${encodeURIComponent(currentPlaylist.pass)}&action=get_series_info&series_id=${item.id}`;
+            const data = await (await fetch(applyProxy(base))).json();
+            let ep = null;
+            if (data.episodes) for (const s in data.episodes) { const e = data.episodes[s]; if (e && e.length) { ep = e[0]; break; } }
+            if (!ep) throw new Error('Sem episódios');
+            url = `${currentPlaylist.server}/series/${encodeURIComponent(currentPlaylist.user)}/${encodeURIComponent(currentPlaylist.pass)}/${ep.id}.${ep.container_extension || 'mp4'}`;
+        } catch (e) { statusEl.textContent = 'Erro: ' + e.message; return; }
+    }
+    if (!url) { statusEl.textContent = 'URL indisponível'; return; }
+    const finalUrl = applyProxy(url);
+    const p = profiles.find(x => x.id === activeProfileId);
+    if (p) { p.activeConnections = Math.min((p.maxConnections || 99), p.activeConnections + 1); saveProfiles(); updateCurrentProfileUI(); scheduleRenderProfileList(); }
+    requestWakeLock();
+    const isTsOrFlv = /\.(ts|flv)(\?|$)/i.test(url) || url.includes('.ts') || url.includes('.flv');
+    const isM3u8 = /\.m3u8(\?|$)/i.test(url) || url.includes('.m3u8');
+    let engines = [];
+    if (isTsOrFlv) {
+        if (typeof mpegts !== 'undefined' && mpegts.getFeatureList().mseLivePlayback) engines.push('mpegts');
+        engines.push('native');
+        if (typeof Hls !== 'undefined' && Hls.isSupported()) engines.push('hls');
+    } else if (isM3u8) {
+        if (typeof Hls !== 'undefined' && Hls.isSupported()) engines.push('hls');
+        if (typeof mpegts !== 'undefined' && mpegts.getFeatureList().mseLivePlayback) engines.push('mpegts');
+        engines.push('native');
+    } else {
+        if (typeof Hls !== 'undefined' && Hls.isSupported()) engines.push('hls');
+        if (typeof mpegts !== 'undefined' && mpegts.getFeatureList().mseLivePlayback) engines.push('mpegts');
+        engines.push('native');
+    }
+    currentPlaybackAttempt = 0;
+    tryNextEngine(engines, finalUrl, item.name);
+}
+
+function tryNextEngine(engines, url, name) {
+    if (currentPlaybackAttempt >= engines.length) { statusEl.textContent = '❌ Todos falharam'; return; }
+    const engine = engines[currentPlaybackAttempt];
+    currentPlaybackAttempt++;
+    statusEl.textContent = `Tentando (${currentPlaybackAttempt}/${engines.length}): ${engine}...`;
+    if (hls) { try { hls.destroy(); } catch(e) {} hls = null; }
+    if (mpegtsPlayer) { try { mpegtsPlayer.destroy(); } catch(e) {} mpegtsPlayer = null; }
+    video.removeAttribute('src'); try { video.load(); } catch(e) {}
+    if (playbackFallbackTimer) clearTimeout(playbackFallbackTimer);
+    playbackFallbackTimer = setTimeout(() => {
+        if (video.readyState < 2) tryNextEngine(engines, url, name);
+    }, 15000);
+    const onSuccess = () => {
+        if (playbackFallbackTimer) { clearTimeout(playbackFallbackTimer); playbackFallbackTimer = null; }
+        statusEl.textContent = 'Reproduzindo: ' + name + ` (${engine})`;
+    };
+    const onFail = (reason) => {
+        console.warn(`Engine ${engine} falhou:`, reason);
+        if (playbackFallbackTimer) { clearTimeout(playbackFallbackTimer); playbackFallbackTimer = null; }
+        tryNextEngine(engines, url, name);
+    };
+    try {
+        if (engine === 'hls' && typeof Hls !== 'undefined' && Hls.isSupported()) {
+            hls = new Hls({ enableWorker: true, maxBufferLength: 30, maxMaxBufferLength: 60, maxBufferSize: 60 * 1000 * 1000, maxBufferHole: 0.5, liveSyncDurationCount: 3, liveMaxLatencyDurationCount: 10, fragLoadingMaxRetry: 6, manifestLoadingMaxRetry: 4, levelLoadingMaxRetry: 4, abrBandWidthUpFactor: 0.7 });
+            hls.loadSource(url); hls.attachMedia(video);
+            hls.on(Hls.Events.MANIFEST_PARSED, () => { video.play().catch(()=>{}); });
+            hls.on(Hls.Events.ERROR, (e, d) => { if (d.fatal) onFail(d.type + ':' + d.details); });
+            video.onplaying = onSuccess;
+        } else if (engine === 'mpegts' && typeof mpegts !== 'undefined' && mpegts.getFeatureList().mseLivePlayback) {
+            mpegtsPlayer = mpegts.createPlayer({ type: 'mse', isLive: true, url: url }, { enableStashBuffer: true, stashInitialSize: 1024 * 1024, liveBufferLatencyChasing: false, autoCleanupSourceBuffer: true, autoCleanupMaxBackwardDuration: 30, autoCleanupMinBackwardDuration: 10 });
+            mpegtsPlayer.attachMediaElement(video); mpegtsPlayer.load(); mpegtsPlayer.play().catch(()=>{});
+            mpegtsPlayer.on(mpegts.Events.ERROR, (type, detail) => { if (detail === 'MediaError' || detail === 'NetworkError') onFail(detail); });
+            video.onplaying = onSuccess;
+        } else if (engine === 'native') {
+            video.src = url; video.play().catch(()=>{});
+            video.onplaying = onSuccess; video.onerror = () => onFail('native error');
+        }
+    } catch (e) { onFail(e.message); }
+}
+video.addEventListener('pause', releaseWakeLock);
+video.addEventListener('ended', releaseWakeLock);
+video.addEventListener('play', requestWakeLock);
+window.addEventListener('beforeunload', destroyAllPlayers);
+
+if ('mediaSession' in navigator) {
+    navigator.mediaSession.setActionHandler('play', () => video.play());
+    navigator.mediaSession.setActionHandler('pause', () => video.pause());
+    navigator.mediaSession.setActionHandler('seekbackward', () => video.currentTime -= 10);
+    navigator.mediaSession.setActionHandler('seekforward', () => video.currentTime += 10);
+}
+
+// ============================================================
+// INIT
+// ============================================================
+(async function init() {
+    PROXY_URL = normalizeProxyBase(localStorage.getItem('iptv_proxy') || '');
+    if (PROXY_URL) localStorage.setItem('iptv_proxy', PROXY_URL);
+    else localStorage.removeItem('iptv_proxy');
+
+    document.getElementById('proxy-url').value = PROXY_URL;
+    updateProxyIndicator();
+    statusEl.textContent = 'Carregando perfis...';
+    profiles = await loadProfilesFromDB();
+    renderProfileList();
+    updateCurrentProfileUI();
+    statusEl.textContent = 'Pronto.';
+
+    setTimeout(async () => {
+        try {
+            const prev = getHeroListMeta();
+            if (!prev) return;
+            const r = await fetch(applyProxy(heroUrlWithBust()), { cache: 'no-store' });
+            if (!r.ok) return;
+            const t = await r.text();
+            const h = await sha256Hex(t);
+            if (h !== prev.hash) {
+                const counter = document.getElementById('hero-counter');
+                if (counter) counter.textContent = '🆕 Hero Lista desatualizada — clique em CARREGAR';
+            }
+        } catch {}
+    }, 5000);
+})();
+</script>
+</body>
+</html>

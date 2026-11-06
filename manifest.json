@@ -1,0 +1,30 @@
+{
+  "name": "IPTV Hero Pro TV",
+  "short_name": "HeroTV",
+  "description": "Player IPTV com perfis, Xtream, M3U e suporte a D-Pad para Android TV.",
+  "id": "/",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone", "minimal-ui"],
+  "orientation": "landscape",
+  "background_color": "#0f172a",
+  "theme_color": "#1e293b",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "categories": ["entertainment", "video", "multimedia"],
+  "prefer_related_applications": false,
+  "icons": [
+    { "src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Ao Vivo",
+      "short_name": "Live",
+      "url": "./?tab=live",
+      "icons": [{ "src": "./icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
